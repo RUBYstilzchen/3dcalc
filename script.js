@@ -1,7 +1,7 @@
 // ==========================================
 // НАЛАШТУВАННЯ
 // ==========================================
-const dumbtax = 0; // 1 = увімкнено ПДВ 20%, 0 = вимкнено
+const dumbtax = 1; // 1 = увімкнено ПДВ 20% на матеріали, 0 = вимкнено
 
 
 // DOM Elements
@@ -263,16 +263,19 @@ function calculate() {
     const markupPercent = parseFloat(markupInput.value) || 0;
     const markupCost = subtotal * (markupPercent / 100);
 
-    let grandTotal = subtotal + markupCost;
-
+    // 4. VAT Calculation (Only if dumbtax === 1 and checkbox is checked)
+    // Тепер ПДВ (20%) рахується виключно від вартості використаних матеріалів (основний пластик + підтримка),
+    // що пропорційно розподіляє податок на катушку між клієнтами за їхню витрачену вагу в грамах.
     let vatCost = 0;
     const isVatApplied = (dumbtax === 1) && vatCheckbox && vatCheckbox.checked;
     
     if (isVatApplied) {
-        vatCost = grandTotal * 0.20;
-        grandTotal += vatCost;
+        vatCost = (totalPrimaryCost + supportCost) * 0.20;
     }
 
+    let grandTotal = subtotal + markupCost + vatCost;
+
+    // Update UI Displays
     hourlyRateUahCalc.textContent = `${hourlyRateUah.toFixed(2)} грн/год`;
     totalPriceDisplay.textContent = Math.round(grandTotal);
 
@@ -395,7 +398,7 @@ function copyToClipboard() {
 
         const btnText = document.getElementById("copyBtnText");
         const originalText = btnText.textContent;
-        btnText.textContent = "Скопіювано!";
+        btnText.textContent = "Скопійовано!";
 
         setTimeout(() => {
             toast.classList.remove("opacity-100", "translate-y-0");
