@@ -75,7 +75,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Валютна ставка ($/год)</label>
                             <div class="relative">
@@ -84,9 +84,16 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Курс долара (грн/$)</label>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-medium text-slate-400">Курс долара (грн/$)</label>
+                                <!-- Свіч / Повзунок -->
+                                <div class="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center text-[10px]">
+                                    <button type="button" id="rateModeManual" class="px-2 py-0.5 rounded-md font-medium transition-all text-slate-400">Ручний</button>
+                                    <button type="button" id="rateModeNbu" class="px-2 py-0.5 rounded-md font-medium transition-all text-slate-400">НБУ</button>
+                                </div>
+                            </div>
                             <div class="relative">
-                                <input type="number" id="usdRateInput" step="0.1" value="45.5" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <input type="number" id="usdRateInput" step="0.1" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
                                 <span class="absolute right-3 top-2.5 text-slate-500 text-sm">грн</span>
                             </div>
                         </div>
@@ -98,7 +105,7 @@
                     </div>
                 </div>
 
-                <!-- Card 2: Матеріал та Катушки -->
+                <!-- Card 2: Матеріал та Катушка -->
                 <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl">
                     <h2 class="text-base font-semibold text-slate-200 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-weight-hanging text-brand-500"></i>
@@ -143,7 +150,7 @@
                         Додатково
                     </h2>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-1">Пост-обробка / Моделювання</label>
                             <div class="relative">
@@ -158,6 +165,14 @@
                                 <span class="absolute right-3 top-2.5 text-slate-500 text-sm">%</span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Чекбокс ПДВ -->
+                    <div class="pt-3 border-t border-slate-800">
+                        <label id="vatLabel" class="flex items-center gap-2.5 select-none transition-opacity">
+                            <input type="checkbox" id="vatCheckbox" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-brand-500 focus:ring-0">
+                            <span class="text-xs text-slate-300">Нарахувати +20% ПДВ дякуючи закону №16051-1 (доступно з 1 липня 2027 року)</span>
+                        </label>
                     </div>
                 </div>
 
@@ -199,6 +214,10 @@
                         <div id="summaryMarkupRow" class="flex justify-between text-slate-400 hidden">
                             <span>Націнка / Знижка:</span>
                             <span class="font-medium text-slate-200" id="summaryMarkupCost">0.00 грн</span>
+                        </div>
+                        <div id="summaryVatRow" class="flex justify-between text-slate-400 hidden">
+                            <span>ПДВ (20%):</span>
+                            <span class="font-medium text-slate-200" id="summaryVatCost">0.00 грн</span>
                         </div>
                     </div>
 

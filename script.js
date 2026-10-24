@@ -1,8 +1,17 @@
+// ==========================================
+// НАЛАШТУВАННЯ
+// ==========================================
+const dumbtax = 0; // 1 = увімкнено ПДВ 20%, 0 = вимкнено
+
+
 // DOM Elements
 const hoursInput = document.getElementById('hoursInput');
 const minutesInput = document.getElementById('minutesInput');
 const rateUsdInput = document.getElementById('rateUsdInput');
 const usdRateInput = document.getElementById('usdRateInput');
+
+const rateModeManual = document.getElementById('rateModeManual');
+const rateModeNbu = document.getElementById('rateModeNbu');
 
 const colorsContainer = document.getElementById('colorsContainer');
 const addColorBtn = document.getElementById('addColorBtn');
@@ -13,6 +22,8 @@ const supportSpoolPriceInput = document.getElementById('supportSpoolPriceInput')
 
 const extraServicesInput = document.getElementById('extraServicesInput');
 const markupInput = document.getElementById('markupInput');
+const vatCheckbox = document.getElementById('vatCheckbox');
+const vatLabel = document.getElementById('vatLabel');
 
 // Output DOM Elements
 const hourlyRateUahCalc = document.getElementById('hourlyRateUahCalc');
@@ -29,11 +40,142 @@ const summaryExtraRow = document.getElementById('summaryExtraRow');
 const summaryExtraCost = document.getElementById('summaryExtraCost');
 const summaryMarkupRow = document.getElementById('summaryMarkupRow');
 const summaryMarkupCost = document.getElementById('summaryMarkupCost');
+const summaryVatRow = document.getElementById('summaryVatRow');
+const summaryVatCost = document.getElementById('summaryVatCost');
 const estimatedProfit = document.getElementById('estimatedProfit');
 
 const clientTextOutput = document.getElementById('clientTextOutput');
 const copyBtn = document.getElementById('copyBtn');
 const resetBtn = document.getElementById('resetBtn');
+
+// Змінна стану режима курсу ('manual' або 'nbu')
+let currentRateMode = 'nbu';
+
+// Setup VAT Checkbox state based on dumbtax variable
+function setupVatState() {
+    if (!vatCheckbox || !vatLabel) return;
+
+    if (dumbtax === 1) {
+        vatCheckbox.disabled = false;
+        vatLabel.title = "";
+        vatLabel.classList.remove('cursor-not-allowed', 'opacity-50');
+        vatLabel.classList.add('cursor-pointer');
+        vatCheckbox.classList.remove('cursor-not-allowed');
+        vatCheckbox.classList.add('cursor-pointer');
+    } else {
+        vatCheckbox.disabled = true;
+        vatCheckbox.checked = false;
+        vatLabel.title = "доступно з 1 липня 2027 року";
+        vatLabel.classList.add('cursor-not-allowed', 'opacity-50');
+        vatLabel.classList.remove('cursor-pointer');
+        vatCheckbox.classList.add('cursor-not-allowed');
+        vatCheckbox.classList.remove('cursor-pointer');
+    }
+}
+
+// Update UI and behavior of Rate Switcher
+function updateRateModeUI() {
+    if (currentRateMode === 'nbu') {
+        rateModeNbu.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
+        rateModeManual.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+        
+        usdRateInput.readOnly = true;
+        usdRateInput.title = "Офіційний курс НБУ (автоматично)";
+        usdRateInput.classList.add('opacity-70', 'cursor-not-allowed');
+        fetchOfficialUsdRate();
+    } else {
+        rateModeManual.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
+        rateModeNbu.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+        
+        usdRateInput.readOnly = false;
+        usdRateInput.title = "Ручне введення курсу";
+        usdRateInput.classList.remove('opacity-70', 'cursor-not-allowed');
+        calculate();
+        saveState();
+    }
+}
+
+// Fetch official USD rate from NBU API
+async function fetchOfficialUsdRate() {
+    if (currentRateMode !== 'nbu') return;
+    try {
+        const response = await fetch('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json');
+        const data = await response.json();
+        if (data && data.length > 0 && data[0].rate) {
+            usdRateInput.value = data[0].rate.toFixed(2);
+            calculate();
+            saveState();
+        }
+    } catch (e) {
+        console.error("Помилка отримання курсу НБУ:", e);
+    }
+}
+
+// Save state to localStorage
+function saveState() {
+    const state = {
+        rateMode: currentRateMode,
+        hours: hoursInput.value,
+        minutes: minutesInput.value,
+        rateUsd: rateUsdInput.value,
+        usdRate: usdRateInput.value,
+        supportType: supportFilamentTypeInput.value,
+        supportWeight: supportWeightInput.value,
+        supportSpoolPrice: supportSpoolPriceInput.value,
+        extraServices: extraServicesInput.value,
+        markup: markupInput.value,
+        vatChecked: vatCheckbox ? vatCheckbox.checked : false,
+        colors: []
+    };
+
+    colorsContainer.querySelectorAll('.color-row').forEach(row => {
+        state.colors.push({
+            name: row.querySelector('.color-name').value,
+            weight: row.querySelector('.color-weight').value,
+            price: row.querySelector('.color-price').value
+        });
+    });
+
+    localStorage.setItem('calc3dState', JSON.stringify(state));
+}
+
+// Load state from localStorage
+function loadState() {
+    const saved = localStorage.getItem('calc3dState');
+    if (saved) {
+        try {
+            const state = JSON.parse(saved);
+            currentRateMode = state.rateMode ?? 'nbu';
+            hoursInput.value = state.hours ?? "0";
+            minutesInput.value = state.minutes ?? "0";
+            rateUsdInput.value = state.rateUsd ?? "0";
+            
+            if (currentRateMode === 'manual') {
+                usdRateInput.value = state.usdRate ?? "0";
+            }
+
+            supportFilamentTypeInput.value = state.supportType ?? "";
+            supportWeightInput.value = state.supportWeight ?? "0";
+            supportSpoolPriceInput.value = state.supportSpoolPrice ?? "0";
+            extraServicesInput.value = state.extraServices ?? "0";
+            markupInput.value = state.markup ?? "0";
+            if (vatCheckbox) vatCheckbox.checked = state.vatChecked ?? false;
+
+            colorsContainer.innerHTML = "";
+            if (state.colors && state.colors.length > 0) {
+                state.colors.forEach(c => {
+                    createColorRow(c.name, c.weight, c.price);
+                });
+            } else {
+                createColorRow("", 0, 0);
+            }
+            return true;
+        } catch (e) {
+            console.error("Помилка завантаження збережених даних:", e);
+        }
+    }
+    return false;
+}
 
 // Helper to create a color row element
 function createColorRow(name = "", weight = 0, price = 0) {
@@ -60,15 +202,18 @@ function createColorRow(name = "", weight = 0, price = 0) {
         </div>
     `;
 
-    // Attach listeners
     const inputs = row.querySelectorAll('input');
-    inputs.forEach(input => input.addEventListener('input', calculate));
+    inputs.forEach(input => input.addEventListener('input', () => {
+        calculate();
+        saveState();
+    }));
 
     const removeBtn = row.querySelector('.remove-color-btn');
     removeBtn.addEventListener('click', () => {
         if (colorsContainer.querySelectorAll('.color-row').length > 1) {
             row.remove();
             calculate();
+            saveState();
         } else {
             alert('Повинен залишатися хоча б один основний пластик!');
         }
@@ -79,7 +224,6 @@ function createColorRow(name = "", weight = 0, price = 0) {
 
 // Main calculation logic
 function calculate() {
-    // 1. Time Calculation
     const hrs = parseFloat(hoursInput.value) || 0;
     const mins = parseFloat(minutesInput.value) || 0;
     const totalHours = hrs + (mins / 60);
@@ -90,7 +234,6 @@ function calculate() {
 
     const printTimeCost = totalHours * hourlyRateUah;
 
-    // 2. Primary Colors Calculation
     const colorRows = colorsContainer.querySelectorAll('.color-row');
     let totalPrimaryWeight = 0;
     let totalPrimaryCost = 0;
@@ -109,22 +252,27 @@ function calculate() {
         colorsData.push({ name, weight, pricePerGram, cost });
     });
 
-    // Support Filament Calculation
     const supportWeight = parseFloat(supportWeightInput.value) || 0;
     const supportSpoolPrice = parseFloat(supportSpoolPriceInput.value) || 0;
     const supportPricePerGram = supportSpoolPrice / 1000;
     const supportCost = supportWeight * supportPricePerGram;
 
-    // 3. Extra Fees & Markup
     const extraServices = parseFloat(extraServicesInput.value) || 0;
     const subtotal = printTimeCost + totalPrimaryCost + supportCost + extraServices;
 
     const markupPercent = parseFloat(markupInput.value) || 0;
     const markupCost = subtotal * (markupPercent / 100);
 
-    const grandTotal = subtotal + markupCost;
+    let grandTotal = subtotal + markupCost;
 
-    // Update UI Displays
+    let vatCost = 0;
+    const isVatApplied = (dumbtax === 1) && vatCheckbox && vatCheckbox.checked;
+    
+    if (isVatApplied) {
+        vatCost = grandTotal * 0.20;
+        grandTotal += vatCost;
+    }
+
     hourlyRateUahCalc.textContent = `${hourlyRateUah.toFixed(2)} грн/год`;
     totalPriceDisplay.textContent = Math.round(grandTotal);
 
@@ -156,11 +304,16 @@ function calculate() {
         summaryMarkupRow.classList.add('hidden');
     }
 
-    // Estimate profit
+    if (isVatApplied) {
+        summaryVatRow.classList.remove('hidden');
+        summaryVatCost.textContent = `${vatCost.toFixed(2)} грн`;
+    } else {
+        summaryVatRow.classList.add('hidden');
+    }
+
     const approxProfit = printTimeCost + extraServices + markupCost;
     estimatedProfit.textContent = `~${Math.round(approxProfit)} грн`;
 
-    // 4. Format Client Text
     let timeStr = "";
     if (hrs > 0 && mins > 0) {
         timeStr = `${hrs} год ${mins} хв (${totalHours.toFixed(2)} год)`;
@@ -190,18 +343,28 @@ function calculate() {
         clientReceipt += `📊 Націнка/Коригування (${markupPercent}%): ${markupCost.toFixed(2)} грн\n`;
     }
 
+    if (isVatApplied) {
+        clientReceipt += `📄 ПДВ (20%): ${vatCost.toFixed(2)} грн\n`;
+    }
+
     clientReceipt += `-----------------------------------\n`;
     clientReceipt += `💰 ЗАГАЛОМ ДО СПЛАТИ: ${Math.round(grandTotal)} грн`;
 
     clientTextOutput.value = clientReceipt;
+    
+    saveState();
 }
 
 // Reset to default zero values function
 function resetToDefaults() {
+    localStorage.removeItem('calc3dState');
+    
     hoursInput.value = "0";
     minutesInput.value = "0";
     rateUsdInput.value = "0";
-    usdRateInput.value = "45.5";
+    
+    currentRateMode = 'nbu';
+    updateRateModeUI();
     
     colorsContainer.innerHTML = "";
     createColorRow("", 0, 0);
@@ -212,7 +375,8 @@ function resetToDefaults() {
 
     extraServicesInput.value = "0";
     markupInput.value = "0";
-    
+
+    setupVatState();
     calculate();
 }
 
@@ -231,7 +395,7 @@ function copyToClipboard() {
 
         const btnText = document.getElementById("copyBtnText");
         const originalText = btnText.textContent;
-        btnText.textContent = "Скопійовано!";
+        btnText.textContent = "Скопіювано!";
 
         setTimeout(() => {
             toast.classList.remove("opacity-100", "translate-y-0");
@@ -248,6 +412,20 @@ function copyToClipboard() {
     input.addEventListener('input', calculate);
 });
 
+if (vatCheckbox) {
+    vatCheckbox.addEventListener('change', calculate);
+}
+
+rateModeManual.addEventListener('click', () => {
+    currentRateMode = 'manual';
+    updateRateModeUI();
+});
+
+rateModeNbu.addEventListener('click', () => {
+    currentRateMode = 'nbu';
+    updateRateModeUI();
+});
+
 addColorBtn.addEventListener('click', () => {
     createColorRow("", 0, 0);
     calculate();
@@ -261,8 +439,12 @@ if (resetBtn) {
     resetBtn.addEventListener('click', resetToDefaults);
 }
 
-// Initial Setup on Load with zero values
+// Initial Setup on Load
 document.addEventListener('DOMContentLoaded', () => {
-    createColorRow("", 0, 0);
-    calculate();
+    setupVatState();
+    const hasLoaded = loadState();
+    if (!hasLoaded) {
+        createColorRow("", 0, 0);
+    }
+    updateRateModeUI();
 });
