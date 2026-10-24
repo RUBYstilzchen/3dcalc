@@ -1,0 +1,12 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.mono-font {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom styling for sleek range inputs */
+input[type=range] {
+    accent-color: #14b8a6;
+}
