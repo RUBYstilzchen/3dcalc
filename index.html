@@ -57,11 +57,11 @@
             <!-- LEFT COLUMN: Form Inputs -->
             <div class="lg:col-span-7 space-y-6">
                 
-                <!-- Card 1: Час друку та Ставка -->
+                <!-- Card 1: Час друку та витрати за годину -->
                 <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl">
                     <h2 class="text-base font-semibold text-slate-200 mb-4 flex items-center gap-2">
                         <i class="fa-regular fa-clock text-brand-500"></i>
-                        Час друку та тариф
+                        Час друку та витрати за годину
                     </h2>
                     
                     <div class="grid grid-cols-2 gap-4 mb-4">
@@ -77,9 +77,26 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 mb-1">Валютна ставка ($/год)</label>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Потужність принтера (Вт)</label>
                             <div class="relative">
-                                <input type="number" id="rateUsdInput" step="0.1" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-8 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <input type="number" id="powerInput" min="0" step="1" value="200" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <span class="absolute right-3 top-2.5 text-slate-500 text-sm">Вт</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Ціна електроенергії (грн/кВт·год)</label>
+                            <div class="relative">
+                                <input type="number" id="electricityPriceInput" min="0" step="0.01" value="4.32" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <span class="absolute right-3 top-2.5 text-slate-500 text-sm">грн</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Ставка оператора ($/год)</label>
+                            <div class="relative">
+                                <input type="number" id="operatorRateUsdInput" step="0.1" min="0" value="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-8 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
                                 <span class="absolute right-3 top-2.5 text-slate-500 text-sm">$</span>
                             </div>
                         </div>
@@ -99,9 +116,40 @@
                         </div>
                     </div>
 
-                    <div class="mt-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs text-slate-400 flex justify-between items-center">
-                        <span>Підсумкова ставка за годину:</span>
-                        <span class="font-semibold text-slate-200" id="hourlyRateUahCalc">0.00 грн/год</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Ціна принтера (грн)</label>
+                            <div class="relative">
+                                <input type="number" id="printerPriceInput" min="0" step="100" value="15000" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <span class="absolute right-3 top-2.5 text-slate-500 text-sm">грн</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Ресурс принтера (год)</label>
+                            <div class="relative">
+                                <input type="number" id="printerLifeHoursInput" min="1" step="100" value="5000" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-12 py-2.5 text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
+                                <span class="absolute right-3 top-2.5 text-slate-500 text-sm">год</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-xs text-slate-400 space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span>Електроенергія:</span>
+                            <span class="font-semibold text-slate-200" id="hourlyEnergyCalc">0.00 грн/год</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Оператор:</span>
+                            <span class="font-semibold text-slate-200" id="hourlyOperatorCalc">0.00 грн/год</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Амортизація принтера:</span>
+                            <span class="font-semibold text-slate-200" id="hourlyDepreciationCalc">0.00 грн/год</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-1.5 border-t border-slate-800/80">
+                            <span class="text-slate-300">Разом за годину:</span>
+                            <span class="font-semibold text-brand-400" id="hourlyRateUahCalc">0.00 грн/год</span>
+                        </div>
                     </div>
                 </div>
 
@@ -109,38 +157,19 @@
                 <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl">
                     <h2 class="text-base font-semibold text-slate-200 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-weight-hanging text-brand-500"></i>
-                        Витрати матеріалу (Багатоколірний друк)
+                        Витрати матеріалу
                     </h2>
 
                     <!-- Динамічний список кольорів основного пластику -->
-                    <div class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-3">Основні кольори / пластики</div>
+                    <div class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-3">кольори / пластики</div>
                     <div id="colorsContainer" class="space-y-3 mb-3">
                         <!-- Рядки кольорів генеруються динамічно -->
                     </div>
 
-                    <button type="button" id="addColorBtn" class="mb-6 w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-brand-400 text-xs font-semibold rounded-xl border border-slate-700 flex items-center justify-center gap-2 transition-all">
+                    <button type="button" id="addColorBtn" class="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-brand-400 text-xs font-semibold rounded-xl border border-slate-700 flex items-center justify-center gap-2 transition-all">
                         <i class="fa-solid fa-plus"></i>
-                        <span>Додати колір пластику</span>
+                        <span>Додати</span>
                     </button>
-
-                    <!-- Матеріал підтримки -->
-                    <div class="pt-4 border-t border-slate-800">
-                        <div class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-2">Пластик підтримки (необов'язково)</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-2">
-                            <div>
-                                <label class="block text-[10px] font-medium text-slate-400 mb-1">Тип / Назва</label>
-                                <input type="text" id="supportFilamentTypeInput" value="" placeholder="Наприклад, PLA" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-medium text-slate-400 mb-1">Витрачено (г)</label>
-                                <input type="number" id="supportWeightInput" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-medium text-slate-400 mb-1">Ціна катушки (1кг)</label>
-                                <input type="number" id="supportSpoolPriceInput" min="0" value="0" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-semibold focus:outline-none focus:border-brand-500 transition-colors">
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Card 3: Додаткові послуги та Націнка -->
@@ -196,16 +225,20 @@
                     <!-- Breakdown breakdown -->
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between text-slate-400">
-                            <span>Робота принтера (<span id="summaryTimeText">0.00 год</span>):</span>
-                            <span class="font-medium text-slate-200" id="summaryTimeCost">0.00 грн</span>
+                            <span>Електроенергія (<span id="summaryEnergyKwh">0.00 кВт·год</span>):</span>
+                            <span class="font-medium text-slate-200" id="summaryEnergyCost">0.00 грн</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Оператор (<span id="summaryOperatorHours">0.00 год</span>):</span>
+                            <span class="font-medium text-slate-200" id="summaryOperatorCost">0.00 грн</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Амортизація принтера:</span>
+                            <span class="font-medium text-slate-200" id="summaryDepreciationCost">0.00 грн</span>
                         </div>
                         <div class="flex justify-between text-slate-400">
                             <span>Матеріал осн. (<span id="summaryWeightText">0 г</span>):</span>
                             <span class="font-medium text-slate-200" id="summaryFilamentCost">0.00 грн</span>
-                        </div>
-                        <div id="summarySupportRow" class="flex justify-between text-slate-400 hidden">
-                            <span>Матеріал підтр. (<span id="summarySupportWeightText">0 г</span>):</span>
-                            <span class="font-medium text-slate-200" id="summarySupportCost">0.00 грн</span>
                         </div>
                         <div id="summaryExtraRow" class="flex justify-between text-slate-400 hidden">
                             <span>Дод. послуги:</span>
@@ -222,7 +255,7 @@
                     </div>
 
                     <div class="mt-4 pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-400">
-                        <span>Орієнтовний чистий прибуток:</span>
+                        <span>Орієнтовний прибуток:</span>
                         <span class="font-semibold text-emerald-400" id="estimatedProfit">~0 грн</span>
                     </div>
                 </div>
@@ -230,12 +263,16 @@
                 <!-- Client Message Box Container -->
                 <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                     <div>
-                        <div class="flex justify-between items-center mb-3">
+                        <div class="flex justify-between items-center mb-3 gap-2">
                             <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
                                 <i class="fa-regular fa-paper-plane text-brand-500"></i>
                                 Готовий чек
                             </h3>
-                            <span class="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">txt format</span>
+                            <!-- Перемикач отримувача чека -->
+                            <div class="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center text-[10px]">
+                                <button type="button" id="receiptModeOperator" class="px-2 py-0.5 rounded-md font-medium transition-all text-slate-400">Оператору</button>
+                                <button type="button" id="receiptModeClient" class="px-2 py-0.5 rounded-md font-medium transition-all text-slate-400">Клієнту</button>
+                            </div>
                         </div>
 
                         <!-- Monospaced Copyable Box -->

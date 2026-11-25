@@ -1,14 +1,31 @@
 // ==========================================
 // НАЛАШТУВАННЯ
 // ==========================================
-const dumbtax = 0; // 1 = увімкнено ПДВ 20% на матеріали, 0 = вимкнено
+// ПДВ 20% (закон №16051-1) стає доступним з 1 липня 2027 року
+const VAT_START_DATE = new Date(2027, 6, 1, 0, 0, 0);
 
+const DEFAULTS = {
+    hours: "0",
+    minutes: "0",
+    powerW: "200",
+    electricityPrice: "4.32",
+    operatorRateUsd: "2",
+    printerPrice: "15000",
+    printerLifeHours: "5000",
+    extraServices: "0",
+    markup: "0"
+};
 
 // DOM Elements
 const hoursInput = document.getElementById('hoursInput');
 const minutesInput = document.getElementById('minutesInput');
-const rateUsdInput = document.getElementById('rateUsdInput');
+
+const powerInput = document.getElementById('powerInput');
+const electricityPriceInput = document.getElementById('electricityPriceInput');
+const operatorRateUsdInput = document.getElementById('operatorRateUsdInput');
 const usdRateInput = document.getElementById('usdRateInput');
+const printerPriceInput = document.getElementById('printerPriceInput');
+const printerLifeHoursInput = document.getElementById('printerLifeHoursInput');
 
 const rateModeManual = document.getElementById('rateModeManual');
 const rateModeNbu = document.getElementById('rateModeNbu');
@@ -16,26 +33,25 @@ const rateModeNbu = document.getElementById('rateModeNbu');
 const colorsContainer = document.getElementById('colorsContainer');
 const addColorBtn = document.getElementById('addColorBtn');
 
-const supportFilamentTypeInput = document.getElementById('supportFilamentTypeInput');
-const supportWeightInput = document.getElementById('supportWeightInput');
-const supportSpoolPriceInput = document.getElementById('supportSpoolPriceInput');
-
 const extraServicesInput = document.getElementById('extraServicesInput');
 const markupInput = document.getElementById('markupInput');
 const vatCheckbox = document.getElementById('vatCheckbox');
 const vatLabel = document.getElementById('vatLabel');
 
 // Output DOM Elements
+const hourlyEnergyCalc = document.getElementById('hourlyEnergyCalc');
+const hourlyOperatorCalc = document.getElementById('hourlyOperatorCalc');
+const hourlyDepreciationCalc = document.getElementById('hourlyDepreciationCalc');
 const hourlyRateUahCalc = document.getElementById('hourlyRateUahCalc');
 const totalPriceDisplay = document.getElementById('totalPriceDisplay');
 
-const summaryTimeText = document.getElementById('summaryTimeText');
-const summaryTimeCost = document.getElementById('summaryTimeCost');
+const summaryEnergyKwh = document.getElementById('summaryEnergyKwh');
+const summaryEnergyCost = document.getElementById('summaryEnergyCost');
+const summaryOperatorHours = document.getElementById('summaryOperatorHours');
+const summaryOperatorCost = document.getElementById('summaryOperatorCost');
+const summaryDepreciationCost = document.getElementById('summaryDepreciationCost');
 const summaryWeightText = document.getElementById('summaryWeightText');
 const summaryFilamentCost = document.getElementById('summaryFilamentCost');
-const summarySupportRow = document.getElementById('summarySupportRow');
-const summarySupportWeightText = document.getElementById('summarySupportWeightText');
-const summarySupportCost = document.getElementById('summarySupportCost');
 const summaryExtraRow = document.getElementById('summaryExtraRow');
 const summaryExtraCost = document.getElementById('summaryExtraCost');
 const summaryMarkupRow = document.getElementById('summaryMarkupRow');
@@ -47,15 +63,27 @@ const estimatedProfit = document.getElementById('estimatedProfit');
 const clientTextOutput = document.getElementById('clientTextOutput');
 const copyBtn = document.getElementById('copyBtn');
 const resetBtn = document.getElementById('resetBtn');
+const receiptModeOperator = document.getElementById('receiptModeOperator');
+const receiptModeClient = document.getElementById('receiptModeClient');
 
 // Змінна стану режима курсу ('manual' або 'nbu')
 let currentRateMode = 'nbu';
 
-// Setup VAT Checkbox state based on dumbtax variable
+// Змінна стану режиму чека ('operator' або 'client')
+let currentReceiptMode = 'operator';
+let lastOperatorReceipt = "";
+let lastClientReceipt = "";
+
+// Чи настав момент, коли ПДВ 20% можна застосовувати
+function isVatAvailable() {
+    return Date.now() >= VAT_START_DATE.getTime();
+}
+
+// Setup VAT Checkbox state based on the law's effective date
 function setupVatState() {
     if (!vatCheckbox || !vatLabel) return;
 
-    if (dumbtax === 1) {
+    if (isVatAvailable()) {
         vatCheckbox.disabled = false;
         vatLabel.title = "";
         vatLabel.classList.remove('cursor-not-allowed', 'opacity-50');
@@ -73,12 +101,33 @@ function setupVatState() {
     }
 }
 
+// Update UI and behavior of Receipt Switcher
+function updateReceiptModeUI() {
+    if (!receiptModeOperator || !receiptModeClient) return;
+
+    if (currentReceiptMode === 'client') {
+        receiptModeClient.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
+        receiptModeOperator.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+    } else {
+        receiptModeOperator.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
+        receiptModeClient.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
+    }
+
+    renderReceipt();
+}
+
+// Show the receipt variant selected by the switcher
+function renderReceipt() {
+    if (!clientTextOutput) return;
+    clientTextOutput.value = currentReceiptMode === 'client' ? lastClientReceipt : lastOperatorReceipt;
+}
+
 // Update UI and behavior of Rate Switcher
 function updateRateModeUI() {
     if (currentRateMode === 'nbu') {
         rateModeNbu.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
         rateModeManual.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
-        
+
         usdRateInput.readOnly = true;
         usdRateInput.title = "Офіційний курс НБУ (автоматично)";
         usdRateInput.classList.add('opacity-70', 'cursor-not-allowed');
@@ -86,7 +135,7 @@ function updateRateModeUI() {
     } else {
         rateModeManual.className = "px-2 py-0.5 rounded-md font-medium transition-all bg-brand-600 text-white shadow";
         rateModeNbu.className = "px-2 py-0.5 rounded-md font-medium transition-all text-slate-400 hover:text-slate-200";
-        
+
         usdRateInput.readOnly = false;
         usdRateInput.title = "Ручне введення курсу";
         usdRateInput.classList.remove('opacity-70', 'cursor-not-allowed');
@@ -115,13 +164,15 @@ async function fetchOfficialUsdRate() {
 function saveState() {
     const state = {
         rateMode: currentRateMode,
+        receiptMode: currentReceiptMode,
         hours: hoursInput.value,
         minutes: minutesInput.value,
-        rateUsd: rateUsdInput.value,
+        powerW: powerInput.value,
+        electricityPrice: electricityPriceInput.value,
+        operatorRateUsd: operatorRateUsdInput.value,
         usdRate: usdRateInput.value,
-        supportType: supportFilamentTypeInput.value,
-        supportWeight: supportWeightInput.value,
-        supportSpoolPrice: supportSpoolPriceInput.value,
+        printerPrice: printerPriceInput.value,
+        printerLifeHours: printerLifeHoursInput.value,
         extraServices: extraServicesInput.value,
         markup: markupInput.value,
         vatChecked: vatCheckbox ? vatCheckbox.checked : false,
@@ -146,19 +197,21 @@ function loadState() {
         try {
             const state = JSON.parse(saved);
             currentRateMode = state.rateMode ?? 'nbu';
-            hoursInput.value = state.hours ?? "0";
-            minutesInput.value = state.minutes ?? "0";
-            rateUsdInput.value = state.rateUsd ?? "0";
-            
+            currentReceiptMode = state.receiptMode ?? 'operator';
+            hoursInput.value = state.hours ?? DEFAULTS.hours;
+            minutesInput.value = state.minutes ?? DEFAULTS.minutes;
+            powerInput.value = state.powerW ?? DEFAULTS.powerW;
+            electricityPriceInput.value = state.electricityPrice ?? DEFAULTS.electricityPrice;
+            operatorRateUsdInput.value = state.operatorRateUsd ?? DEFAULTS.operatorRateUsd;
+            printerPriceInput.value = state.printerPrice ?? DEFAULTS.printerPrice;
+            printerLifeHoursInput.value = state.printerLifeHours ?? DEFAULTS.printerLifeHours;
+
             if (currentRateMode === 'manual') {
                 usdRateInput.value = state.usdRate ?? "0";
             }
 
-            supportFilamentTypeInput.value = state.supportType ?? "";
-            supportWeightInput.value = state.supportWeight ?? "0";
-            supportSpoolPriceInput.value = state.supportSpoolPrice ?? "0";
-            extraServicesInput.value = state.extraServices ?? "0";
-            markupInput.value = state.markup ?? "0";
+            extraServicesInput.value = state.extraServices ?? DEFAULTS.extraServices;
+            markupInput.value = state.markup ?? DEFAULTS.markup;
             if (vatCheckbox) vatCheckbox.checked = state.vatChecked ?? false;
 
             colorsContainer.innerHTML = "";
@@ -181,7 +234,7 @@ function loadState() {
 function createColorRow(name = "", weight = 0, price = 0) {
     const row = document.createElement('div');
     row.className = "color-row grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-slate-950/40 p-3 rounded-xl border border-slate-800/80 relative";
-    
+
     row.innerHTML = `
         <div class="sm:col-span-5">
             <label class="block text-[10px] font-medium text-slate-400 mb-1">Колір / Назва</label>
@@ -228,11 +281,28 @@ function calculate() {
     const mins = parseFloat(minutesInput.value) || 0;
     const totalHours = hrs + (mins / 60);
 
-    const rateUsd = parseFloat(rateUsdInput.value) || 0;
-    const usdRate = parseFloat(usdRateInput.value) || 0;
-    const hourlyRateUah = rateUsd * usdRate;
+    // Електроенергія
+    const powerW = parseFloat(powerInput.value) || 0;
+    const electricityPrice = parseFloat(electricityPriceInput.value) || 0;
+    const powerKw = powerW / 1000;
+    const energyKwh = powerKw * totalHours;
+    const energyCost = energyKwh * electricityPrice;
+    const energyPerHour = powerKw * electricityPrice;
 
-    const printTimeCost = totalHours * hourlyRateUah;
+    // Оператор
+    const operatorRateUsd = parseFloat(operatorRateUsdInput.value) || 0;
+    const usdRate = parseFloat(usdRateInput.value) || 0;
+    const operatorHourlyUah = operatorRateUsd * usdRate;
+    const operatorCost = totalHours * operatorHourlyUah;
+
+    // Амортизація принтера
+    const printerPrice = parseFloat(printerPriceInput.value) || 0;
+    const printerLifeHours = parseFloat(printerLifeHoursInput.value) || 0;
+    const depreciationPerHour = printerLifeHours > 0 ? printerPrice / printerLifeHours : 0;
+    const depreciationCost = totalHours * depreciationPerHour;
+
+    const machineTimeCost = energyCost + operatorCost + depreciationCost;
+    const hourlyRateUah = energyPerHour + operatorHourlyUah + depreciationPerHour;
 
     const colorRows = colorsContainer.querySelectorAll('.color-row');
     let totalPrimaryWeight = 0;
@@ -252,46 +322,39 @@ function calculate() {
         colorsData.push({ name, weight, pricePerGram, cost });
     });
 
-    const supportWeight = parseFloat(supportWeightInput.value) || 0;
-    const supportSpoolPrice = parseFloat(supportSpoolPriceInput.value) || 0;
-    const supportPricePerGram = supportSpoolPrice / 1000;
-    const supportCost = supportWeight * supportPricePerGram;
-
     const extraServices = parseFloat(extraServicesInput.value) || 0;
-    const subtotal = printTimeCost + totalPrimaryCost + supportCost + extraServices;
+    const subtotal = machineTimeCost + totalPrimaryCost + extraServices;
 
     const markupPercent = parseFloat(markupInput.value) || 0;
     const markupCost = subtotal * (markupPercent / 100);
 
-    // 4. VAT Calculation (Only if dumbtax === 1 and checkbox is checked)
-    // Тепер ПДВ (20%) рахується виключно від вартості використаних матеріалів (основний пластик + підтримка),
+    // VAT Calculation (only when the law is in effect and checkbox is checked).
+    // ПДВ (20%) рахується виключно від вартості використаних матеріалів,
     // що пропорційно розподіляє податок на катушку між клієнтами за їхню витрачену вагу в грамах.
     let vatCost = 0;
-    const isVatApplied = (dumbtax === 1) && vatCheckbox && vatCheckbox.checked;
-    
+    const isVatApplied = isVatAvailable() && vatCheckbox && vatCheckbox.checked;
+
     if (isVatApplied) {
-        vatCost = (totalPrimaryCost + supportCost) * 0.20;
+        vatCost = totalPrimaryCost * 0.20;
     }
 
-    let grandTotal = subtotal + markupCost + vatCost;
+    const grandTotal = subtotal + markupCost + vatCost;
 
     // Update UI Displays
+    hourlyEnergyCalc.textContent = `${energyPerHour.toFixed(2)} грн/год`;
+    hourlyOperatorCalc.textContent = `${operatorHourlyUah.toFixed(2)} грн/год`;
+    hourlyDepreciationCalc.textContent = `${depreciationPerHour.toFixed(2)} грн/год`;
     hourlyRateUahCalc.textContent = `${hourlyRateUah.toFixed(2)} грн/год`;
     totalPriceDisplay.textContent = Math.round(grandTotal);
 
-    summaryTimeText.textContent = `${totalHours.toFixed(2)} год`;
-    summaryTimeCost.textContent = `${printTimeCost.toFixed(2)} грн`;
+    summaryEnergyKwh.textContent = `${energyKwh.toFixed(2)} кВт·год`;
+    summaryEnergyCost.textContent = `${energyCost.toFixed(2)} грн`;
+    summaryOperatorHours.textContent = `${totalHours.toFixed(2)} год`;
+    summaryOperatorCost.textContent = `${operatorCost.toFixed(2)} грн`;
+    summaryDepreciationCost.textContent = `${depreciationCost.toFixed(2)} грн`;
 
     summaryWeightText.textContent = `${totalPrimaryWeight} г`;
     summaryFilamentCost.textContent = `${totalPrimaryCost.toFixed(2)} грн`;
-
-    if (supportWeight > 0) {
-        summarySupportRow.classList.remove('hidden');
-        summarySupportWeightText.textContent = `${supportWeight} г`;
-        summarySupportCost.textContent = `${supportCost.toFixed(2)} грн`;
-    } else {
-        summarySupportRow.classList.add('hidden');
-    }
 
     if (extraServices > 0) {
         summaryExtraRow.classList.remove('hidden');
@@ -314,7 +377,7 @@ function calculate() {
         summaryVatRow.classList.add('hidden');
     }
 
-    const approxProfit = printTimeCost + extraServices + markupCost;
+    const approxProfit = operatorCost + extraServices + markupCost;
     estimatedProfit.textContent = `~${Math.round(approxProfit)} грн`;
 
     let timeStr = "";
@@ -326,58 +389,68 @@ function calculate() {
         timeStr = `${mins} хв (${totalHours.toFixed(2)} год)`;
     }
 
-    let clientReceipt = `--- РОЗРАХУНОК ВАРТОСТІ 3D-ДРУКУ ---\n`;
-    clientReceipt += `⏱ Час друку: ${timeStr} х ${hourlyRateUah.toFixed(2)} грн/год = ${printTimeCost.toFixed(2)} грн\n`;
+    // Повний чек — для оператора
+    let operatorReceipt = `--- РОЗРАХУНОК ВАРТОСТІ 3D-ДРУКУ ---\n`;
+    operatorReceipt += `⏱ Час друку: ${timeStr}\n`;
+    operatorReceipt += `⚡ Електроенергія: ${energyKwh.toFixed(2)} кВт·год х ${electricityPrice.toFixed(2)} грн/кВт·год = ${energyCost.toFixed(2)} грн\n`;
+    operatorReceipt += `👤 Оператор: ${totalHours.toFixed(2)} год х ${operatorHourlyUah.toFixed(2)} грн/год ($${operatorRateUsd}) = ${operatorCost.toFixed(2)} грн\n`;
+    operatorReceipt += `🖨 Амортизація принтера: ${totalHours.toFixed(2)} год х ${depreciationPerHour.toFixed(2)} грн/год = ${depreciationCost.toFixed(2)} грн\n`;
 
     colorsData.forEach((col) => {
-        clientReceipt += `🧵 Матеріал [${col.name}]: ${col.weight} г х ${col.pricePerGram.toFixed(2)} грн/г = ${col.cost.toFixed(2)} грн\n`;
+        operatorReceipt += `🧵 Матеріал [${col.name}]: ${col.weight} г х ${col.pricePerGram.toFixed(2)} грн/г = ${col.cost.toFixed(2)} грн\n`;
     });
 
-    if (supportWeight > 0) {
-        const supportName = supportFilamentTypeInput.value.trim() || "Підтримка";
-        clientReceipt += `🧵 Підтримка [${supportName}]: ${supportWeight} г х ${supportPricePerGram.toFixed(2)} грн/г = ${supportCost.toFixed(2)} грн\n`;
-    }
-
     if (extraServices > 0) {
-        clientReceipt += `🛠 Додаткова обробка / підготовка: ${extraServices.toFixed(2)} грн\n`;
+        operatorReceipt += `🛠 Додаткова обробка / підготовка: ${extraServices.toFixed(2)} грн\n`;
     }
 
     if (markupPercent !== 0) {
-        clientReceipt += `📊 Націнка/Коригування (${markupPercent}%): ${markupCost.toFixed(2)} грн\n`;
+        operatorReceipt += `📊 Націнка/Коригування (${markupPercent}%): ${markupCost.toFixed(2)} грн\n`;
     }
 
     if (isVatApplied) {
-        clientReceipt += `📄 ПДВ (20%): ${vatCost.toFixed(2)} грн\n`;
+        operatorReceipt += `📄 ПДВ (20%): ${vatCost.toFixed(2)} грн\n`;
     }
 
+    operatorReceipt += `-----------------------------------\n`;
+    operatorReceipt += `💰 ЗАГАЛОМ ДО СПЛАТИ: ${Math.round(grandTotal)} грн`;
+
+    // Скорочений чек — лише час друку та підсумкова вартість
+    let clientReceipt = `--- РОЗРАХУНОК ВАРТОСТІ 3D-ДРУКУ ---\n`;
+    clientReceipt += `⏱ Час друку: ${timeStr}\n`;
     clientReceipt += `-----------------------------------\n`;
     clientReceipt += `💰 ЗАГАЛОМ ДО СПЛАТИ: ${Math.round(grandTotal)} грн`;
 
-    clientTextOutput.value = clientReceipt;
-    
+    lastOperatorReceipt = operatorReceipt;
+    lastClientReceipt = clientReceipt;
+    renderReceipt();
+
     saveState();
 }
 
-// Reset to default zero values function
+// Reset to default values function
 function resetToDefaults() {
     localStorage.removeItem('calc3dState');
-    
-    hoursInput.value = "0";
-    minutesInput.value = "0";
-    rateUsdInput.value = "0";
-    
+
+    hoursInput.value = DEFAULTS.hours;
+    minutesInput.value = DEFAULTS.minutes;
+    powerInput.value = DEFAULTS.powerW;
+    electricityPriceInput.value = DEFAULTS.electricityPrice;
+    operatorRateUsdInput.value = DEFAULTS.operatorRateUsd;
+    printerPriceInput.value = DEFAULTS.printerPrice;
+    printerLifeHoursInput.value = DEFAULTS.printerLifeHours;
+
     currentRateMode = 'nbu';
     updateRateModeUI();
-    
+
+    currentReceiptMode = 'operator';
+    updateReceiptModeUI();
+
     colorsContainer.innerHTML = "";
     createColorRow("", 0, 0);
 
-    supportFilamentTypeInput.value = "";
-    supportWeightInput.value = "0";
-    supportSpoolPriceInput.value = "0";
-
-    extraServicesInput.value = "0";
-    markupInput.value = "0";
+    extraServicesInput.value = DEFAULTS.extraServices;
+    markupInput.value = DEFAULTS.markup;
 
     setupVatState();
     calculate();
@@ -391,7 +464,7 @@ function copyToClipboard() {
 
     try {
         document.execCommand('copy');
-        
+
         const toast = document.getElementById("toast");
         toast.classList.remove("opacity-0", "pointer-events-none", "translate-y-3");
         toast.classList.add("opacity-100", "translate-y-0");
@@ -411,7 +484,7 @@ function copyToClipboard() {
 }
 
 // Attach event listeners to static inputs
-[hoursInput, minutesInput, rateUsdInput, usdRateInput, supportFilamentTypeInput, supportWeightInput, supportSpoolPriceInput, extraServicesInput, markupInput].forEach(input => {
+[hoursInput, minutesInput, powerInput, electricityPriceInput, operatorRateUsdInput, usdRateInput, printerPriceInput, printerLifeHoursInput, extraServicesInput, markupInput].forEach(input => {
     input.addEventListener('input', calculate);
 });
 
@@ -428,6 +501,22 @@ rateModeNbu.addEventListener('click', () => {
     currentRateMode = 'nbu';
     updateRateModeUI();
 });
+
+if (receiptModeOperator) {
+    receiptModeOperator.addEventListener('click', () => {
+        currentReceiptMode = 'operator';
+        updateReceiptModeUI();
+        saveState();
+    });
+}
+
+if (receiptModeClient) {
+    receiptModeClient.addEventListener('click', () => {
+        currentReceiptMode = 'client';
+        updateReceiptModeUI();
+        saveState();
+    });
+}
 
 addColorBtn.addEventListener('click', () => {
     createColorRow("", 0, 0);
@@ -450,4 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
         createColorRow("", 0, 0);
     }
     updateRateModeUI();
+    updateReceiptModeUI();
+    calculate();
 });
